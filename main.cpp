@@ -1,4 +1,5 @@
 #include "mbed.h"
+#include <cstdint>
 
 #define BUFFERSIZE      64
 
@@ -8,6 +9,8 @@ BufferedSerial xbee(PA_9,PA_10, 115200);
 Thread readThread;
 
 char startByte = 0x7E;
+uint16_t msgLen = 1024;
+
 
 
 char buf[BUFFERSIZE] = {0};
@@ -24,6 +27,7 @@ void reader()
             //led = !led;
             //length = snprintf(temp,BUFFERSIZE,"%s",buf);
             // Echo the input back to the terminal.
+            length = snprintf(buffer, BUFFERSIZE, "\r\nThis is the message: %s", buf);
             pc.write(buf, num);
         }
     }
@@ -45,8 +49,9 @@ int main()
     readThread.start(reader);
 
     int i = (0xFF - (0x10 + 0x01 + 0xFF + 0xFF + 0xFF + 0xFF + 0xFF + 0xFF + 0xFF + 0xFF + 0xFF + 0xFE + 0x00 + 0x00 + 0x41));
-        length = snprintf(buffer, BUFFERSIZE, "%x", i);
-        pc.write(buffer, length);
+    int j = i & 0xFF; //Gets the least significant byte
+    length = snprintf(buffer, BUFFERSIZE, "\r\n%x\r\n%x\r\n%x", i,j,msgLen);
+    pc.write(buffer, length);
 
     while (true) {
         ThisThread::sleep_for(chrono::seconds(10));
