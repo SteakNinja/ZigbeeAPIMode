@@ -1,36 +1,62 @@
 #include "mbed.h"
 #include <cstdint>
 
-#define BUFFERSIZE      64
+#define BUFFSIZE      64
 
 BufferedSerial pc(USBTX,USBRX, 115200);
 BufferedSerial xbee(PA_9,PA_10, 115200);
 
 Thread readThread;
 
-char startByte = 0x7E;
-uint16_t msgLen = 1024;
+char startByte          = 0x7E;
+uint16_t msgLen         = 13;
+char type               = 0x10;
+char frameID            = 0x01;
+char destAddr[]         = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+char destAdd2           = 0xFE;
+char broadcastRad       = 0x00;
+char options            = 0x00;
+char msgBuff[BUFFSIZE]  = {0};
 
+char CompMsg[]          = {0x7E, 0x00, 0x0F, 0x10, 0x01, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFE, 0x00, 0x00, 0xA1, 0x58};
+char msg2[]             = {0x10, 0x01, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFE, 0x00, 0x00, 0xA1};
 
-
-char buf[BUFFERSIZE] = {0};
-char temp[BUFFERSIZE] = {0};
-char buffer[BUFFERSIZE] = {0};
+char buf[BUFFSIZE]      = {0};
+char temp[BUFFSIZE]     = {0};
+char buffer[BUFFSIZE]   = {0};
 int length;
+int checksum;
 
 void reader()
 {
     while(1)
     {
         if (uint32_t num = xbee.read(buf, sizeof(buf))) {
-            // Toggle the LED.
-            //led = !led;
-            //length = snprintf(temp,BUFFERSIZE,"%s",buf);
-            // Echo the input back to the terminal.
-            length = snprintf(buffer, BUFFERSIZE, "\r\nThis is the message: %s", buf);
+            
+            length = snprintf(buffer, BUFFSIZE, "\r\nThis is the message: %s", buf);
             pc.write(buf, num);
         }
     }
+}
+
+int BuildMessage(char *xbeeMsg, int *chcksum, char *msg, int len)
+{
+    int finalLen = 17+len;
+    int temp;
+    int temp2;
+    int tempLen;
+    //length = snprintf(buffer, BUFFSIZE, "\r\nsize: %d", sizeof(message));
+    //pc.write(buffer, length);
+
+    xbeeMsg = {};
+
+    for(int i = 0; i < len; i++)
+    {
+        temp += message[i];
+    }
+    temp2 = (0xFF-temp) & 0xFF;
+    chcksum = &temp2;
+    return snprintf(xbeeMsg, BUFFSIZE, "%c%s%c%c%s%s%c%c%s%c",startByte, msgLen+len, type, frameID, destAddr, destAdd2, broadcastRad, options, msg);
 }
 
 // main() runs in its own thread in the OS
@@ -48,13 +74,15 @@ int main()
     );
     readThread.start(reader);
 
-    int i = (0xFF - (0x10 + 0x01 + 0xFF + 0xFF + 0xFF + 0xFF + 0xFF + 0xFF + 0xFF + 0xFF + 0xFF + 0xFE + 0x00 + 0x00 + 0x41));
+    int i = (0xFF - (0x10 + 0x01 + 0xFF + 0xFF + 0xFF + 0xFF + 0xFF + 0xFF + 0xFF + 0xFF + 0xFF + 0xFE + 0x00 + 0x00 + 0xA1));
     int j = i & 0xFF; //Gets the least significant byte
-    length = snprintf(buffer, BUFFERSIZE, "\r\n%x\r\n%x\r\n%x", i,j,msgLen);
+    length = snprintf(buffer, BUFFSIZE, "\r\nChecksum = %x", calculateChecksum(msg2));
     pc.write(buffer, length);
 
     while (true) {
-        ThisThread::sleep_for(chrono::seconds(10));
+        
+        xbee.write(msg, sizeof(msg));
+        ThisThread::sleep_for(chrono::seconds(1));
     }
 }
 
