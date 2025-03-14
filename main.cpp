@@ -108,7 +108,8 @@ void BuildMessage(char *xbeeMsg, char *msg, int len)
 // main() runs in its own thread in the OS
 int main()
 {
-    pc.set_format(
+    //Default settings for serial, but best practice to make sure they are set correctly
+    pc.set_format(                          
         /* bits */ 8,
         /* parity */ BufferedSerial::None,
         /* stop bit */ 1
@@ -118,17 +119,18 @@ int main()
         /* parity */ BufferedSerial::None,
         /* stop bit */ 1
     );
-    int n;
-    n = snprintf(buffer, BUFFSIZE, "\r\n\r\nHello, I have started :)");
-    pc.write(buffer, n);
 
-    readThread.start(reader);
+    int n;                                                                  //Single int variable for length of USB transmissions
+    n = snprintf(buffer, BUFFSIZE, "\r\n\r\nHello, I have started :)");     //Best practice to start a programme with a printout so you know it is running
+    pc.write(buffer, n);                                                    //Write the built message to USB
+
+    readThread.start(reader);                                               //Begin a new thread to handle reading
 
     while (true) {
-        n = snprintf(msgBuff, BUFFSIZE, "counter %d", counter);
-        BuildMessage(xbeeBuff, msgBuff, n);
-        counter++;
-        ThisThread::sleep_for(chrono::seconds(2));
+        n = snprintf(msgBuff, BUFFSIZE, "counter %d", counter);             //Prepare a payload that consists of a counter
+        BuildMessage(xbeeBuff, msgBuff, n);                                 //Call the method to integrate our payload into a complete Zigbee message and send
+        counter++;                                                          //Increment counter by one
+        ThisThread::sleep_for(chrono::seconds(2));                          //Wait for 2 seconds to give the default zigbee overheads time to clear before sending again
     }
 }
 
